@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Kitchen Manager"
+version = "1.0.0"
+id = "artifacts/smart-kitchen"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18542
+
+[services.development]
+run = "pnpm --filter @workspace/smart-kitchen run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smart-kitchen", "run", "build" ]
+publicDir = "artifacts/smart-kitchen/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18542"
+BASE_PATH = "/"

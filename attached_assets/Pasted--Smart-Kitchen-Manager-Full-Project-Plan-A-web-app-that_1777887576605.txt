@@ -1,0 +1,558 @@
+# Smart Kitchen Manager — Full Project Plan
+
+> A web app that tracks your kitchen stock, suggests meals based on available ingredients, and auto-generates a shopping list for missing or low items.
+
+---
+
+## Project Overview
+
+| Field | Detail |
+|---|---|
+| Project Name | Smart Kitchen Manager |
+| Type | Web Application (PWA) |
+| Target Users | Individuals and families who cook at home |
+| Primary Goal | Eliminate daily "what should I cook?" decision fatigue |
+| Platform | Web (desktop + mobile responsive) |
+| Tech Stack | React + Vite, Node.js/Express, PostgreSQL, Claude AI API |
+
+---
+
+## Problem Statement
+
+Every day, home cooks face the same three problems:
+
+1. **"What should I cook today?"** — No easy way to see what meals are possible with current stock.
+2. **"What do I need to buy?"** — Shopping lists are made from memory, leading to forgotten items or overbuying.
+3. **"What do I have?"** — No visibility into pantry stock until something runs out.
+
+This app solves all three with a single, simple interface.
+
+---
+
+## Core Features
+
+| # | Feature | Description |
+|---|---|---|
+| 1 | Kitchen Stock Manager | Add, edit, remove ingredients with quantity and unit tracking |
+| 2 | Smart Status Tracking | Auto-mark items as In Stock / Low / Out based on quantity |
+| 3 | Meal Suggestion Engine | Suggest meals based on available ingredients with match % |
+| 4 | AI-Powered Suggestions | Use Claude API to suggest creative meals and recipes |
+| 5 | Shopping List Generator | Auto-generate list from low stock + missing recipe ingredients |
+| 6 | Manual Shopping Items | Let users add custom items to the shopping list |
+| 7 | Recipe Detail View | Step-by-step cooking instructions for each suggested meal |
+| 8 | User Accounts | Login/signup to sync data across devices |
+| 9 | PWA Support | Install on mobile like a native app, works offline |
+| 10 | Family/Multi-user | Share kitchen stock with household members |
+
+---
+
+## Project Phases
+
+---
+
+### Phase 1 — Foundation & Setup
+
+**Goal:** Get a working development environment and basic project structure ready.
+
+#### Tasks
+
+- [ ] **1.1** Create GitHub repository with README
+- [ ] **1.2** Set up Vite + React project (`npm create vite@latest`)
+- [ ] **1.3** Install core dependencies: `react-router-dom`, `axios`, `zustand` (state), `tailwindcss`
+- [ ] **1.4** Set up folder structure:
+  ```
+  /src
+    /components
+    /pages
+    /store
+    /hooks
+    /utils
+    /api
+  /server
+    /routes
+    /models
+    /controllers
+    /middleware
+  ```
+- [ ] **1.5** Set up Node.js + Express backend project
+- [ ] **1.6** Configure PostgreSQL database (local + cloud: Supabase or Railway)
+- [ ] **1.7** Create `.env` file with DB connection string, API keys, JWT secret
+- [ ] **1.8** Set up ESLint + Prettier for code formatting
+- [ ] **1.9** Configure Tailwind CSS with custom color theme
+- [ ] **1.10** Create basic CI/CD pipeline with GitHub Actions (lint + build check on push)
+
+**Estimated Time:** 2–3 days  
+**Deliverable:** Clean project scaffold running locally on `localhost:5173` (frontend) and `localhost:3000` (backend)
+
+---
+
+### Phase 2 — Database Design
+
+**Goal:** Design and create all database tables needed for the app.
+
+#### Tasks
+
+- [ ] **2.1** Design Entity Relationship Diagram (ERD)
+- [ ] **2.2** Create `users` table
+  ```sql
+  id, email, password_hash, name, created_at
+  ```
+- [ ] **2.3** Create `ingredients` master table (global list)
+  ```sql
+  id, name, category, default_unit, created_at
+  ```
+- [ ] **2.4** Create `kitchen_stock` table (per user)
+  ```sql
+  id, user_id, ingredient_id, quantity, unit, low_threshold, updated_at
+  ```
+- [ ] **2.5** Create `recipes` table
+  ```sql
+  id, name, description, cuisine_type, prep_time_mins, servings, instructions, image_url, is_ai_generated
+  ```
+- [ ] **2.6** Create `recipe_ingredients` table (many-to-many)
+  ```sql
+  id, recipe_id, ingredient_id, quantity, unit, is_optional
+  ```
+- [ ] **2.7** Create `shopping_list` table
+  ```sql
+  id, user_id, ingredient_id, name, quantity, unit, reason, is_checked, is_manual, created_at
+  ```
+- [ ] **2.8** Create `family_groups` table for shared kitchens
+  ```sql
+  id, name, owner_id, invite_code, created_at
+  ```
+- [ ] **2.9** Write database migration scripts using `db-migrate` or `knex`
+- [ ] **2.10** Seed database with 50+ common Indian/global ingredients
+- [ ] **2.11** Seed database with 30+ pre-built recipes with ingredients
+
+**Estimated Time:** 2–3 days  
+**Deliverable:** All tables created, migrations working, seed data loaded
+
+---
+
+### Phase 3 — Backend API
+
+**Goal:** Build all REST API endpoints for the frontend to consume.
+
+#### Tasks
+
+##### Authentication
+- [ ] **3.1** `POST /api/auth/register` — Create new user account
+- [ ] **3.2** `POST /api/auth/login` — Login, return JWT token
+- [ ] **3.3** `POST /api/auth/logout` — Invalidate token
+- [ ] **3.4** `GET /api/auth/me` — Get current user profile
+- [ ] **3.5** Middleware: JWT authentication guard for protected routes
+- [ ] **3.6** Password hashing with `bcrypt`
+
+##### Kitchen Stock
+- [ ] **3.7** `GET /api/stock` — Get all stock items for current user
+- [ ] **3.8** `POST /api/stock` — Add new ingredient to stock
+- [ ] **3.9** `PUT /api/stock/:id` — Update quantity or unit
+- [ ] **3.10** `DELETE /api/stock/:id` — Remove ingredient from stock
+- [ ] **3.11** `PATCH /api/stock/:id/quantity` — Quick +/- quantity update
+- [ ] **3.12** Auto-calculate status (good/low/out) based on `low_threshold`
+
+##### Ingredients
+- [ ] **3.13** `GET /api/ingredients` — Search/list all global ingredients
+- [ ] **3.14** `GET /api/ingredients/categories` — Get ingredient categories
+- [ ] **3.15** `POST /api/ingredients` — Add custom ingredient (admin or user)
+
+##### Meal Suggestions
+- [ ] **3.16** `GET /api/suggestions` — Get ranked meal suggestions based on current stock
+  - Return: match %, available ingredients, missing ingredients, recipe details
+  - Sort: fully available first, then by match %
+- [ ] **3.17** `GET /api/suggestions/ai` — Get AI-powered suggestions via Claude API
+  - Send current stock to Claude, ask for creative meal ideas
+- [ ] **3.18** `GET /api/recipes` — List all recipes (with filters: cuisine, time, vegetarian)
+- [ ] **3.19** `GET /api/recipes/:id` — Get full recipe with ingredients and steps
+
+##### Shopping List
+- [ ] **3.20** `GET /api/shopping` — Get current shopping list (auto + manual)
+- [ ] **3.21** `POST /api/shopping` — Manually add item to shopping list
+- [ ] **3.22** `PATCH /api/shopping/:id/check` — Mark item as bought
+- [ ] **3.23** `DELETE /api/shopping/:id` — Remove item from list
+- [ ] **3.24** `POST /api/shopping/clear-checked` — Remove all checked items
+- [ ] **3.25** `POST /api/shopping/restock` — Move checked items back to stock with new quantity
+
+##### Family/Group
+- [ ] **3.26** `POST /api/family` — Create family group
+- [ ] **3.27** `POST /api/family/join` — Join group via invite code
+- [ ] **3.28** `GET /api/family/members` — List all members in group
+
+**Estimated Time:** 5–7 days  
+**Deliverable:** All endpoints working and tested with Postman/Thunder Client
+
+---
+
+### Phase 4 — Frontend: Core UI
+
+**Goal:** Build all screens and UI components.
+
+#### Tasks
+
+##### Layout & Navigation
+- [ ] **4.1** Create app layout with bottom navigation (mobile) and sidebar (desktop)
+- [ ] **4.2** Tabs: Stock | Suggestions | Shopping | Settings
+- [ ] **4.3** Responsive layout: works on 375px mobile and 1280px desktop
+- [ ] **4.4** Dark mode support with CSS variables
+- [ ] **4.5** Loading states and skeleton loaders for all data-fetching screens
+
+##### Kitchen Stock Screen
+- [ ] **4.6** Ingredient list with status dot (green/orange/red)
+- [ ] **4.7** Stats row: In Stock count, Low count, Out of Stock count
+- [ ] **4.8** Quick +/− quantity buttons on each row
+- [ ] **4.9** Add ingredient form: name (autocomplete from master list), quantity, unit
+- [ ] **4.10** Edit ingredient modal (change unit, set low threshold)
+- [ ] **4.11** Delete ingredient with confirm dialog
+- [ ] **4.12** Filter/search bar to find ingredients quickly
+- [ ] **4.13** Group by category (Vegetables, Grains, Dairy, Spices, etc.)
+- [ ] **4.14** Bulk add mode: paste comma-separated list of ingredients
+
+##### Meal Suggestions Screen
+- [ ] **4.15** Recipe cards sorted by match %
+- [ ] **4.16** Color-coded border: green (ready), orange (1–2 missing), grey (partial)
+- [ ] **4.17** Ingredient tags on each card: green = have it, red = missing
+- [ ] **4.18** Filter by: meal type (breakfast/lunch/dinner/snack), vegetarian/non-veg
+- [ ] **4.19** "Cook this" button — opens recipe detail with full instructions
+- [ ] **4.20** "Add missing to shopping list" button on each recipe card
+- [ ] **4.21** AI Suggestions button — calls Claude API for creative ideas
+- [ ] **4.22** Recipe detail page/modal: ingredients, steps, time, servings, serving size adjuster
+
+##### Shopping List Screen
+- [ ] **4.23** Two sections: Auto-generated items | Manually added items
+- [ ] **4.24** Each item shows name, reason ("For: Dal Tadka"), and badge (Low/Missing)
+- [ ] **4.25** Checkbox to mark items as bought
+- [ ] **4.26** "Restock" button: after shopping, update kitchen stock with bought quantities
+- [ ] **4.27** Manual add: type any item + optional quantity
+- [ ] **4.28** "Clear checked" button
+- [ ] **4.29** Share shopping list (copy as plain text, or share via WhatsApp link)
+
+##### Settings Screen
+- [ ] **4.30** User profile: name, email, change password
+- [ ] **4.31** Default units preference (metric/imperial)
+- [ ] **4.32** Low stock threshold preference (global default)
+- [ ] **4.33** Cuisine preferences (to prioritize in suggestions)
+- [ ] **4.34** Family group management: create, join, view members
+- [ ] **4.35** Export kitchen stock as CSV
+- [ ] **4.36** Delete account
+
+**Estimated Time:** 8–12 days  
+**Deliverable:** Full UI working with mock/hardcoded data, no API calls yet
+
+---
+
+### Phase 5 — Frontend: API Integration
+
+**Goal:** Connect all frontend screens to the real backend API.
+
+#### Tasks
+
+- [ ] **5.1** Set up Zustand store: `useStockStore`, `useSuggestionsStore`, `useShoppingStore`, `useAuthStore`
+- [ ] **5.2** Create `api/` service layer using axios with base URL + auth headers
+- [ ] **5.3** Connect Stock screen to `/api/stock` endpoints (CRUD)
+- [ ] **5.4** Connect Suggestions screen to `/api/suggestions`
+- [ ] **5.5** Connect Shopping screen to `/api/shopping` endpoints
+- [ ] **5.6** Connect Auth screens (login/register) to `/api/auth`
+- [ ] **5.7** Implement JWT storage in `localStorage` and auto-attach to all requests
+- [ ] **5.8** Handle auth expiry: redirect to login if 401 response
+- [ ] **5.9** Implement optimistic UI updates (update local state before server confirms)
+- [ ] **5.10** Add proper error handling and user-facing error toasts
+- [ ] **5.11** Add React Query for data caching and background refetch
+
+**Estimated Time:** 4–5 days  
+**Deliverable:** Fully functional app with real data from backend
+
+---
+
+### Phase 6 — AI Integration (Claude API)
+
+**Goal:** Add AI-powered meal suggestions and smart features using Anthropic's Claude API.
+
+#### Tasks
+
+- [ ] **6.1** Set up Anthropic API key in backend `.env`
+- [ ] **6.2** Install `@anthropic-ai/sdk` in backend
+- [ ] **6.3** Build `/api/suggestions/ai` endpoint:
+  - Send current stock list to Claude
+  - Prompt: "Given these ingredients: [list], suggest 5 Indian/global meals I can cook. For each meal, give name, key ingredients used, and a brief 2-line description."
+  - Parse response and return structured JSON
+- [ ] **6.4** Build `/api/recipes/ai-detail` endpoint:
+  - Accept a meal name + available ingredients
+  - Prompt Claude for full step-by-step recipe adjusted to what the user has
+  - Return: ingredients list, steps, cooking time, tips
+- [ ] **6.5** Build `/api/shopping/ai-suggestions` endpoint:
+  - Given user's stock, ask Claude what 5–10 ingredients would expand their cooking options the most
+- [ ] **6.6** Add "Ask AI" chat feature: user can type "What can I make for a quick lunch?" and get AI response
+- [ ] **6.7** Rate limit AI calls: max 10/day for free tier users
+- [ ] **6.8** Cache AI responses for same stock state (avoid duplicate API calls)
+- [ ] **6.9** Display AI badge on suggestions that came from Claude
+- [ ] **6.10** Add loading state and streaming response display for AI recipe generation
+
+**Estimated Time:** 4–5 days  
+**Deliverable:** Working AI meal suggestions and recipe generation integrated in the app
+
+---
+
+### Phase 7 — PWA & Offline Support
+
+**Goal:** Make the app installable on mobile and usable without internet.
+
+#### Tasks
+
+- [ ] **7.1** Add `vite-plugin-pwa` to Vite config
+- [ ] **7.2** Create `manifest.json` with app name, icons, theme color
+- [ ] **7.3** Create app icons: 192x192 and 512x512 PNG (generate with Canva or Figma)
+- [ ] **7.4** Configure Service Worker with Workbox:
+  - Cache: app shell, static assets, fonts
+  - Strategy: Network-first for API calls, Cache-first for static assets
+- [ ] **7.5** Implement offline fallback page
+- [ ] **7.6** Sync stock changes made offline when connection returns
+- [ ] **7.7** "Add to home screen" prompt on mobile after 3 visits
+- [ ] **7.8** Test PWA install on Android Chrome and iOS Safari
+
+**Estimated Time:** 2–3 days  
+**Deliverable:** App installable on mobile and partially usable offline
+
+---
+
+### Phase 8 — Testing
+
+**Goal:** Ensure the app works correctly and doesn't have critical bugs.
+
+#### Tasks
+
+##### Backend Tests
+- [ ] **8.1** Unit tests for suggestion matching algorithm (`Jest`)
+- [ ] **8.2** Unit tests for shopping list auto-generation logic
+- [ ] **8.3** Integration tests for all API endpoints using `Supertest`
+- [ ] **8.4** Test auth: invalid tokens, expired tokens, missing auth header
+- [ ] **8.5** Test edge cases: empty stock, zero quantity, all missing ingredients
+
+##### Frontend Tests
+- [ ] **8.6** Component tests with `React Testing Library` for Stock list, Recipe card, Shopping item
+- [ ] **8.7** Test add/edit/delete ingredient flow
+- [ ] **8.8** Test quantity +/− buttons
+- [ ] **8.9** Test shopping list check/uncheck/clear
+
+##### Manual QA Checklist
+- [ ] **8.10** Test full user journey: Register → Add stock → See suggestions → Cook → Update stock
+- [ ] **8.11** Test on mobile (iOS Safari + Android Chrome)
+- [ ] **8.12** Test dark mode
+- [ ] **8.13** Test with empty state (no stock, no recipes matched)
+- [ ] **8.14** Test PWA install and offline mode
+
+**Estimated Time:** 3–4 days  
+**Deliverable:** Test suite passing, no critical bugs in core flows
+
+---
+
+### Phase 9 — Deployment
+
+**Goal:** Deploy the app to production so real users can access it.
+
+#### Tasks
+
+- [ ] **9.1** Set up production PostgreSQL on **Supabase** (free tier) or **Railway**
+- [ ] **9.2** Deploy backend API to **Render** or **Railway** (Node.js service)
+- [ ] **9.3** Deploy frontend to **Vercel** (auto-deploys from GitHub main branch)
+- [ ] **9.4** Set all environment variables in production (Vercel + Render dashboards)
+- [ ] **9.5** Update CORS settings in Express to allow production frontend domain
+- [ ] **9.6** Configure custom domain (optional): `kitchenmanager.app`
+- [ ] **9.7** Set up HTTPS (automatic with Vercel/Render)
+- [ ] **9.8** Set up database backups (Supabase: daily automatic backups)
+- [ ] **9.9** Add uptime monitoring with **UptimeRobot** (free)
+- [ ] **9.10** Test full production deployment end-to-end
+
+**Estimated Time:** 1–2 days  
+**Deliverable:** App live and accessible at a public URL
+
+---
+
+### Phase 10 — Polish & Future Features
+
+**Goal:** Nice-to-have improvements after the core app is live.
+
+#### Tasks
+
+- [ ] **10.1** Barcode scanner: scan grocery items to add to stock (use device camera)
+- [ ] **10.2** Expiry date tracking: alert when items are about to expire
+- [ ] **10.3** Weekly meal planner: plan meals for the week, auto-update stock
+- [ ] **10.4** Nutrition info: show calories and macros for suggested meals
+- [ ] **10.5** Recipe import from URL: paste a recipe link, parse ingredients automatically
+- [ ] **10.6** Smart reorder: learn typical quantities bought and suggest them in shopping list
+- [ ] **10.7** WhatsApp integration: send shopping list via WhatsApp API
+- [ ] **10.8** Multi-language support: Hindi, Gujarati, Tamil
+- [ ] **10.9** Print shopping list in clean format
+- [ ] **10.10** Social sharing: share a recipe you cooked with friends
+
+---
+
+## Tech Stack Summary
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Frontend | React 18 + Vite | Fast SPA with HMR |
+| Styling | Tailwind CSS | Utility-first responsive styles |
+| State | Zustand | Lightweight global state |
+| Data Fetching | React Query + Axios | Caching, background sync |
+| Routing | React Router v6 | Client-side routing |
+| Backend | Node.js + Express | REST API server |
+| Database | PostgreSQL | Relational data storage |
+| ORM | Knex.js | SQL query builder |
+| Auth | JWT + bcrypt | Secure authentication |
+| AI | Anthropic Claude API | Meal suggestions + recipes |
+| PWA | Vite PWA Plugin + Workbox | Offline + installable |
+| Hosting (FE) | Vercel | Free, auto-deploys from GitHub |
+| Hosting (BE) | Render | Free Node.js hosting |
+| Database Host | Supabase | Free PostgreSQL with backups |
+| Testing | Jest + Supertest + RTL | Unit + integration + component |
+
+---
+
+## Timeline Summary
+
+| Phase | Description | Duration |
+|---|---|---|
+| Phase 1 | Setup & Scaffolding | 2–3 days |
+| Phase 2 | Database Design | 2–3 days |
+| Phase 3 | Backend API | 5–7 days |
+| Phase 4 | Frontend UI | 8–12 days |
+| Phase 5 | API Integration | 4–5 days |
+| Phase 6 | AI Integration | 4–5 days |
+| Phase 7 | PWA + Offline | 2–3 days |
+| Phase 8 | Testing | 3–4 days |
+| Phase 9 | Deployment | 1–2 days |
+| **Total** | | **~5–6 weeks** |
+
+---
+
+## Folder Structure
+
+```
+smart-kitchen-manager/
+├── client/                        # React frontend
+│   ├── public/
+│   │   ├── manifest.json
+│   │   └── icons/
+│   ├── src/
+│   │   ├── api/                   # Axios service layer
+│   │   │   ├── auth.js
+│   │   │   ├── stock.js
+│   │   │   ├── suggestions.js
+│   │   │   └── shopping.js
+│   │   ├── components/            # Reusable UI components
+│   │   │   ├── IngredientRow.jsx
+│   │   │   ├── RecipeCard.jsx
+│   │   │   ├── ShoppingItem.jsx
+│   │   │   ├── StatsRow.jsx
+│   │   │   └── Navbar.jsx
+│   │   ├── pages/                 # Full page views
+│   │   │   ├── StockPage.jsx
+│   │   │   ├── SuggestionsPage.jsx
+│   │   │   ├── ShoppingPage.jsx
+│   │   │   ├── RecipeDetailPage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   └── SettingsPage.jsx
+│   │   ├── store/                 # Zustand state stores
+│   │   │   ├── useStockStore.js
+│   │   │   ├── useAuthStore.js
+│   │   │   └── useShoppingStore.js
+│   │   ├── hooks/                 # Custom React hooks
+│   │   │   └── useIngredients.js
+│   │   └── utils/
+│   │       ├── matchRecipes.js    # Core suggestion algorithm
+│   │       └── formatters.js
+│   ├── vite.config.js
+│   └── tailwind.config.js
+│
+├── server/                        # Node.js backend
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── stock.js
+│   │   ├── suggestions.js
+│   │   ├── shopping.js
+│   │   └── recipes.js
+│   ├── controllers/
+│   ├── models/
+│   ├── middleware/
+│   │   └── authMiddleware.js
+│   ├── db/
+│   │   ├── migrations/
+│   │   └── seeds/
+│   └── index.js
+│
+├── .env.example
+├── .gitignore
+├── README.md
+└── package.json
+```
+
+---
+
+## Key Algorithm: Meal Suggestion Logic
+
+```javascript
+// matchRecipes.js
+function getSuggestions(stock, recipes) {
+  const inStock = stock
+    .filter(item => item.quantity > 0)
+    .map(item => item.name.toLowerCase());
+
+  return recipes
+    .map(recipe => {
+      const required = recipe.ingredients.map(i => i.name.toLowerCase());
+      const optional = recipe.ingredients
+        .filter(i => i.is_optional)
+        .map(i => i.name.toLowerCase());
+
+      const have = required.filter(i => inStock.includes(i));
+      const missing = required.filter(i => !inStock.includes(i));
+      const matchScore = have.length / required.length;
+
+      return { ...recipe, have, missing, matchScore };
+    })
+    .filter(r => r.matchScore > 0)
+    .sort((a, b) => b.matchScore - a.matchScore);
+}
+```
+
+---
+
+## Environment Variables
+
+```env
+# .env.example
+
+# Server
+PORT=3000
+NODE_ENV=development
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/kitchen_db
+
+# Auth
+JWT_SECRET=your_super_secret_key_here
+JWT_EXPIRES_IN=7d
+
+# Anthropic AI
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Frontend (Vite)
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+---
+
+## Success Metrics
+
+| Metric | Target |
+|---|---|
+| Time to first suggestion after adding 10 items | < 1 second |
+| AI suggestion response time | < 5 seconds |
+| Mobile Lighthouse score | > 85 |
+| PWA install prompt trigger | After 3 visits |
+| Shopping list auto-generation accuracy | Covers 90%+ of real needs |
+
+---
+
+*Project created for Smart Kitchen Manager — v1.0*

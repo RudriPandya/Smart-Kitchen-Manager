@@ -3,20 +3,33 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Kitchen Manager API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: ingredients
+    description: Ingredient master list
+  - name: stock
+    description: Kitchen stock management
+  - name: recipes
+    description: Recipe management
+  - name: suggestions
+    description: Meal suggestions
+  - name: shopping
+    description: Shopping list management
+  - name: dashboard
+    description: Dashboard summary data
+  - name: anthropic
+    description: Anthropic AI chat operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,583 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Ingredients ────────────────────────────────────────────────────────────
+  /ingredients:
+    get:
+      operationId: listIngredients
+      tags: [ingredients]
+      summary: List/search global ingredients
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ingredient"
+    post:
+      operationId: createIngredient
+      tags: [ingredients]
+      summary: Create a new ingredient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIngredientBody"
+      responses:
+        "201":
+          description: Created ingredient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+  /ingredients/categories:
+    get:
+      operationId: listIngredientCategories
+      tags: [ingredients]
+      summary: List all ingredient categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  # ─── Kitchen Stock ────────────────────────────────────────────────────────
+  /stock:
+    get:
+      operationId: listStock
+      tags: [stock]
+      summary: Get all kitchen stock items
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [in_stock, low, out]
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of stock items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockItem"
+    post:
+      operationId: createStockItem
+      tags: [stock]
+      summary: Add ingredient to stock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockItemBody"
+      responses:
+        "201":
+          description: Created stock item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockItem"
+  /stock/{id}:
+    get:
+      operationId: getStockItem
+      tags: [stock]
+      summary: Get a single stock item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stock item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockItem"
+    put:
+      operationId: updateStockItem
+      tags: [stock]
+      summary: Update a stock item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStockItemBody"
+      responses:
+        "200":
+          description: Updated stock item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockItem"
+    delete:
+      operationId: deleteStockItem
+      tags: [stock]
+      summary: Remove a stock item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+  /stock/{id}/quantity:
+    patch:
+      operationId: updateStockQuantity
+      tags: [stock]
+      summary: Quick quantity update (+/-)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuantityBody"
+      responses:
+        "200":
+          description: Updated stock item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockItem"
+
+  # ─── Recipes ────────────────────────────────────────────────────────────────
+  /recipes:
+    get:
+      operationId: listRecipes
+      tags: [recipes]
+      summary: List all recipes
+      parameters:
+        - name: cuisine
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: vegetarian
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: maxTime
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recipe"
+    post:
+      operationId: createRecipe
+      tags: [recipes]
+      summary: Create a new recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecipeBody"
+      responses:
+        "201":
+          description: Created recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+  /recipes/{id}:
+    get:
+      operationId: getRecipe
+      tags: [recipes]
+      summary: Get a recipe with full details and ingredients
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recipe detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # ─── Suggestions ────────────────────────────────────────────────────────────
+  /suggestions:
+    get:
+      operationId: getMealSuggestions
+      tags: [suggestions]
+      summary: Get ranked meal suggestions based on current stock
+      parameters:
+        - name: vegetarian
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: cuisine
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: maxTime
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ranked meal suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MealSuggestion"
+  /suggestions/ai:
+    post:
+      operationId: getAiSuggestions
+      tags: [suggestions]
+      summary: Get AI-powered meal suggestions via Claude (SSE stream)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSuggestionsBody"
+      responses:
+        "200":
+          description: SSE stream of AI suggestions
+          content:
+            text/event-stream: {}
+
+  # ─── Shopping List ────────────────────────────────────────────────────────
+  /shopping:
+    get:
+      operationId: listShoppingItems
+      tags: [shopping]
+      summary: Get current shopping list
+      responses:
+        "200":
+          description: Shopping list items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShoppingItem"
+    post:
+      operationId: createShoppingItem
+      tags: [shopping]
+      summary: Manually add item to shopping list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShoppingItemBody"
+      responses:
+        "201":
+          description: Created shopping item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShoppingItem"
+  /shopping/{id}:
+    delete:
+      operationId: deleteShoppingItem
+      tags: [shopping]
+      summary: Remove item from shopping list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+  /shopping/{id}/check:
+    patch:
+      operationId: checkShoppingItem
+      tags: [shopping]
+      summary: Toggle item checked/unchecked
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckShoppingItemBody"
+      responses:
+        "200":
+          description: Updated shopping item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShoppingItem"
+  /shopping/clear-checked:
+    post:
+      operationId: clearCheckedShoppingItems
+      tags: [shopping]
+      summary: Remove all checked shopping items
+      responses:
+        "200":
+          description: Count of removed items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearResult"
+  /shopping/restock:
+    post:
+      operationId: restockFromShopping
+      tags: [shopping]
+      summary: Move checked shopping items back into stock
+      responses:
+        "200":
+          description: Restocked items count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestockResult"
+  /shopping/generate:
+    post:
+      operationId: generateShoppingList
+      tags: [shopping]
+      summary: Auto-generate shopping list from low/missing stock + recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateShoppingBody"
+      responses:
+        "200":
+          description: Generated shopping items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShoppingItem"
+
+  # ─── Dashboard ────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get kitchen dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent stock activity feed
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+  /dashboard/low-stock:
+    get:
+      operationId: getLowStockItems
+      tags: [dashboard]
+      summary: Get items that are low or out of stock
+      responses:
+        "200":
+          description: Low/out-of-stock items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockItem"
+
+  # ─── Anthropic AI Chat ────────────────────────────────────────────────────
+  /anthropic/conversations:
+    get:
+      operationId: listAnthropicConversations
+      tags: [anthropic]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnthropicConversation"
+    post:
+      operationId: createAnthropicConversation
+      tags: [anthropic]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAnthropicConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicConversation"
+  /anthropic/conversations/{id}:
+    get:
+      operationId: getAnthropicConversation
+      tags: [anthropic]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicError"
+    delete:
+      operationId: deleteAnthropicConversation
+      tags: [anthropic]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicError"
+  /anthropic/conversations/{id}/messages:
+    get:
+      operationId: listAnthropicMessages
+      tags: [anthropic]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnthropicMessage"
+    post:
+      operationId: sendAnthropicMessage
+      tags: [anthropic]
+      summary: Send a message and receive an AI response (SSE stream)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendAnthropicMessageBody"
+      responses:
+        "200":
+          description: SSE stream of assistant response chunks
+          content:
+            text/event-stream: {}
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +624,505 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    # ─── Ingredient ──────────────────────────────────────────────────────────
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        defaultUnit:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - category
+        - defaultUnit
+        - createdAt
+    CreateIngredientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        defaultUnit:
+          type: string
+      required:
+        - name
+        - category
+        - defaultUnit
+
+    # ─── Stock ────────────────────────────────────────────────────────────────
+    StockItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        ingredientId:
+          type: integer
+        ingredientName:
+          type: string
+        category:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        lowThreshold:
+          type: number
+        status:
+          type: string
+          enum: [in_stock, low, out]
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - ingredientId
+        - ingredientName
+        - category
+        - quantity
+        - unit
+        - lowThreshold
+        - status
+        - updatedAt
+    CreateStockItemBody:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+        ingredientName:
+          type: string
+        category:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        lowThreshold:
+          type: number
+      required:
+        - quantity
+        - unit
+    UpdateStockItemBody:
+      type: object
+      properties:
+        quantity:
+          type: number
+        unit:
+          type: string
+        lowThreshold:
+          type: number
+    UpdateQuantityBody:
+      type: object
+      properties:
+        delta:
+          type: number
+      required:
+        - delta
+
+    # ─── Recipe ───────────────────────────────────────────────────────────────
+    Recipe:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        cuisineType:
+          type: string
+        prepTimeMins:
+          type: integer
+        servings:
+          type: integer
+        isVegetarian:
+          type: boolean
+        imageUrl:
+          type: string
+          nullable: true
+        isAiGenerated:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - cuisineType
+        - prepTimeMins
+        - servings
+        - isVegetarian
+        - isAiGenerated
+        - createdAt
+    RecipeIngredient:
+      type: object
+      properties:
+        id:
+          type: integer
+        ingredientId:
+          type: integer
+        ingredientName:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        isOptional:
+          type: boolean
+      required:
+        - id
+        - ingredientId
+        - ingredientName
+        - quantity
+        - unit
+        - isOptional
+    RecipeDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        cuisineType:
+          type: string
+        prepTimeMins:
+          type: integer
+        servings:
+          type: integer
+        isVegetarian:
+          type: boolean
+        imageUrl:
+          type: string
+          nullable: true
+        instructions:
+          type: string
+        isAiGenerated:
+          type: boolean
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeIngredient"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - cuisineType
+        - prepTimeMins
+        - servings
+        - isVegetarian
+        - instructions
+        - isAiGenerated
+        - ingredients
+        - createdAt
+    CreateRecipeBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        cuisineType:
+          type: string
+        prepTimeMins:
+          type: integer
+        servings:
+          type: integer
+        isVegetarian:
+          type: boolean
+        instructions:
+          type: string
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              ingredientName:
+                type: string
+              quantity:
+                type: number
+              unit:
+                type: string
+              isOptional:
+                type: boolean
+            required:
+              - ingredientName
+              - quantity
+              - unit
+      required:
+        - name
+        - description
+        - cuisineType
+        - prepTimeMins
+        - servings
+        - instructions
+        - ingredients
+
+    # ─── Suggestions ──────────────────────────────────────────────────────────
+    MealSuggestion:
+      type: object
+      properties:
+        recipe:
+          $ref: "#/components/schemas/Recipe"
+        matchScore:
+          type: number
+        matchPercent:
+          type: integer
+        haveIngredients:
+          type: array
+          items:
+            type: string
+        missingIngredients:
+          type: array
+          items:
+            type: string
+        canCookNow:
+          type: boolean
+      required:
+        - recipe
+        - matchScore
+        - matchPercent
+        - haveIngredients
+        - missingIngredients
+        - canCookNow
+    AiSuggestionsBody:
+      type: object
+      properties:
+        prompt:
+          type: string
+          nullable: true
+      required: []
+
+    # ─── Shopping ─────────────────────────────────────────────────────────────
+    ShoppingItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        ingredientId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        quantity:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        isChecked:
+          type: boolean
+        isManual:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - isChecked
+        - isManual
+        - createdAt
+    CreateShoppingItemBody:
+      type: object
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        ingredientId:
+          type: integer
+        reason:
+          type: string
+      required:
+        - name
+    CheckShoppingItemBody:
+      type: object
+      properties:
+        isChecked:
+          type: boolean
+      required:
+        - isChecked
+    GenerateShoppingBody:
+      type: object
+      properties:
+        recipeId:
+          type: integer
+          nullable: true
+        includeLowStock:
+          type: boolean
+      required: []
+    ClearResult:
+      type: object
+      properties:
+        removed:
+          type: integer
+      required:
+        - removed
+    RestockResult:
+      type: object
+      properties:
+        restocked:
+          type: integer
+      required:
+        - restocked
+
+    # ─── Dashboard ────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      properties:
+        totalIngredients:
+          type: integer
+        inStockCount:
+          type: integer
+        lowStockCount:
+          type: integer
+        outOfStockCount:
+          type: integer
+        totalRecipes:
+          type: integer
+        canCookNow:
+          type: integer
+        shoppingListCount:
+          type: integer
+        categoryBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+            required:
+              - category
+              - count
+      required:
+        - totalIngredients
+        - inStockCount
+        - lowStockCount
+        - outOfStockCount
+        - totalRecipes
+        - canCookNow
+        - shoppingListCount
+        - categoryBreakdown
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - description
+        - timestamp
+
+    # ─── Anthropic ────────────────────────────────────────────────────────────
+    AnthropicConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    AnthropicMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    CreateAnthropicConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    SendAnthropicMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    AnthropicConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnthropicMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    AnthropicError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
