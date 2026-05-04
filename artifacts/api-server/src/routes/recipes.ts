@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { recipesTable, recipeIngredientsTable, ingredientsTable } from "@workspace/db";
+import { recipesTable, recipeIngredientsTable, ingredientsTable, kitchenStockTable, activityLogTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -43,7 +43,6 @@ router.post("/recipes", async (req, res) => {
 
     if (ingredients && Array.isArray(ingredients)) {
       for (const ing of ingredients) {
-        // Find ingredient id if it exists
         const [existing] = await db.select().from(ingredientsTable).where(
           eq(ingredientsTable.name, ing.ingredientName)
         );
@@ -88,6 +87,51 @@ router.get("/recipes/:id", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to get recipe" });
+  }
+});
+
+// Cook a recipe: deduct ingredient quantities from kitchen stock
+router.post("/recipes/:id/cook", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [recipe] = await db.select().from(recipesTable).where(eq(recipesTable.id, id));
+    if (!recipe) return res.status(404).json({ error: "Recipe not found" });
+
+    const recipeIngredients = await db
+      .select()
+      .from(recipeIngredientsTable)
+      .where(eq(recipeIngredientsTable.recipeId, id));
+
+    const deducted: { ingredientName: string; deducted: number; unit: string }[] = [];
+    const notFound: string[] = [];
+
+    for (const ing of recipeIngredients) {
+      if (ing.isOptional) continue;
+
+      const [stockItem] = await db.select().from(kitchenStockTable)
+        .where(eq(kitchenStockTable.ingredientName, ing.ingredientName));
+
+      if (stockItem) {
+        const deductAmount = ing.quantity ?? 1;
+        const newQty = Math.max(0, stockItem.quantity - deductAmount);
+        await db.update(kitchenStockTable)
+          .set({ quantity: newQty, updatedAt: new Date() })
+          .where(eq(kitchenStockTable.id, stockItem.id));
+        deducted.push({ ingredientName: ing.ingredientName, deducted: deductAmount, unit: ing.unit ?? stockItem.unit });
+      } else {
+        notFound.push(ing.ingredientName);
+      }
+    }
+
+    await db.insert(activityLogTable).values({
+      type: "cooked",
+      description: `Cooked ${recipe.name} — deducted ${deducted.length} ingredient(s) from stock`,
+    });
+
+    res.json({ success: true, recipeName: recipe.name, deducted, notFound });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to cook recipe" });
   }
 });
 

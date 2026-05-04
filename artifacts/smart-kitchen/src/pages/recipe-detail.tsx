@@ -1,17 +1,45 @@
-import { useGetRecipe, getGetRecipeQueryKey } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useGetRecipe, getGetRecipeQueryKey, getListStockQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, Users, Leaf, ChefHat } from "lucide-react";
+import { ArrowLeft, Clock, Users, Leaf, ChefHat, Loader2, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RecipeDetail() {
   const params = useParams();
   const id = Number(params.id);
-  
-  const { data: recipe, isLoading } = useGetRecipe(id, { 
-    query: { enabled: !!id, queryKey: getGetRecipeQueryKey(id) } 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isCooking, setIsCooking] = useState(false);
+  const [cooked, setCooked] = useState(false);
+
+  const { data: recipe, isLoading } = useGetRecipe(id, {
+    query: { enabled: !!id, queryKey: getGetRecipeQueryKey(id) }
   });
+
+  const handleCook = async () => {
+    setIsCooking(true);
+    try {
+      const res = await fetch(`/api/recipes/${id}/cook`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setCooked(true);
+      queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getDashboardSummaryQueryKey() });
+      toast({
+        title: `Enjoy your ${recipe?.name}! 🍽️`,
+        description: `${data.deducted.length} ingredient(s) deducted from your pantry.`,
+      });
+      setTimeout(() => setCooked(false), 4000);
+    } catch {
+      toast({ title: "Error", description: "Could not update pantry.", variant: "destructive" });
+    } finally {
+      setIsCooking(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -33,10 +61,27 @@ export default function RecipeDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <Link href="/recipes" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to recipes
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/recipes" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to recipes
+        </Link>
+
+        <Button
+          onClick={handleCook}
+          disabled={isCooking || cooked}
+          className={`gap-2 transition-all ${cooked ? 'bg-green-600 hover:bg-green-700' : ''}`}
+          size="lg"
+        >
+          {isCooking ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Cooking…</>
+          ) : cooked ? (
+            <><CheckCircle2 className="w-4 h-4" /> Pantry Updated!</>
+          ) : (
+            <><ChefHat className="w-4 h-4" /> Cook This Meal</>
+          )}
+        </Button>
+      </div>
 
       {recipe.imageUrl && (
         <div className="w-full h-[400px] rounded-2xl overflow-hidden shadow-lg border">
@@ -94,20 +139,35 @@ export default function RecipeDetail() {
               {recipe.ingredients?.map((ing) => (
                 <li key={ing.id} className="flex justify-between items-center pb-3 border-b border-border/40 last:border-0">
                   <span className="font-medium text-foreground/90">
-                    {ing.ingredientName} {ing.isOptional && <span className="text-muted-foreground font-normal text-sm">(optional)</span>}
+                    {ing.ingredientName}
+                    {ing.isOptional && <span className="text-muted-foreground font-normal text-sm ml-1">(optional)</span>}
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground text-sm">
                     {ing.quantity} {ing.unit}
                   </span>
                 </li>
               ))}
             </ul>
+
+            <Button
+              onClick={handleCook}
+              disabled={isCooking || cooked}
+              className={`w-full gap-2 ${cooked ? 'bg-green-600 hover:bg-green-700' : ''}`}
+            >
+              {isCooking ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Cooking…</>
+              ) : cooked ? (
+                <><CheckCircle2 className="w-4 h-4" /> Pantry Updated!</>
+              ) : (
+                <><ChefHat className="w-4 h-4" /> Cook This Meal</>
+              )}
+            </Button>
           </div>
 
           <div className="space-y-6">
             <h2 className="text-2xl font-bold font-serif">Instructions</h2>
-            <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-2 text-foreground/90">
-              <p className="whitespace-pre-wrap">{recipe.instructions}</p>
+            <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed text-foreground/90">
+              <p className="whitespace-pre-wrap leading-relaxed">{recipe.instructions}</p>
             </div>
           </div>
         </div>

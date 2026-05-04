@@ -77,43 +77,40 @@ router.post("/suggestions/ai", async (req, res) => {
       .map(s => `${s.ingredientName} (${s.quantity} ${s.unit})`);
 
     const userPrompt = (req.body as { prompt?: string }).prompt || "";
-    const prompt = `I have these ingredients in my kitchen: ${inStockItems.join(", ")}.
 
-${userPrompt ? `Additional request: ${userPrompt}` : ""}
+    const prompt = `You are a friendly AI sous-chef. I have these ingredients available in my kitchen:
 
-Please suggest 5 creative and delicious meals I can cook with these ingredients. For each meal provide:
-1. Meal name
-2. Key ingredients used (from my list)
-3. Any missing ingredients needed (keep it minimal)
-4. Brief 2-line description
-5. Approximate prep time in minutes
-6. Cuisine type
-7. Whether it's vegetarian (true/false)
+${inStockItems.join(", ")}
 
-Format your response as a JSON array with this structure:
-[{"name": "...", "description": "...", "usedIngredients": [...], "missingIngredients": [...], "prepTimeMins": N, "cuisineType": "...", "isVegetarian": true/false}]
+${userPrompt ? `My request: ${userPrompt}` : "Please suggest creative and delicious meals I can cook."}
 
-Return ONLY the JSON array, no other text.`;
+Suggest 3 to 5 meals. For each meal, present it clearly with:
+- **Meal name** and cuisine type
+- A short appetizing description (1-2 sentences)
+- ✅ Key ingredients I already have
+- 🛒 Any extra ingredients needed (keep to minimum)
+- ⏱ Approximate prep time
+- Whether it's vegetarian
+
+Write in a warm, friendly tone — like a chef giving personal recommendations. Do NOT return JSON or code. Just write naturally.`;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    let fullResponse = "";
     const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-6",
-      max_tokens: 8192,
+      max_tokens: 2048,
       messages: [{ role: "user", content: prompt }],
     });
 
     for await (const event of stream) {
       if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        fullResponse += event.delta.text;
         res.write(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`);
       }
     }
 
-    res.write(`data: ${JSON.stringify({ done: true, fullContent: fullResponse })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
   } catch (err) {
     req.log.error(err);

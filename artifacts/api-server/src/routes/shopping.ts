@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { shoppingListTable, kitchenStockTable, activityLogTable } from "@workspace/db";
+import { shoppingListTable, kitchenStockTable, recipeIngredientsTable, activityLogTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const router = Router();
@@ -90,7 +90,7 @@ router.post("/shopping/clear-checked", async (req, res) => {
 router.post("/shopping/restock", async (req, res) => {
   try {
     const checkedItems = await db.select().from(shoppingListTable)
-      .where(and(eq(shoppingListTable.isChecked, true)));
+      .where(eq(shoppingListTable.isChecked, true));
 
     let restocked = 0;
     for (const item of checkedItems) {
@@ -133,7 +133,45 @@ router.post("/shopping/generate", async (req, res) => {
     const { recipeId, includeLowStock } = req.body as { recipeId?: number; includeLowStock?: boolean };
     const added: (typeof shoppingListTable.$inferSelect)[] = [];
 
-    if (includeLowStock !== false) {
+    // Add missing recipe ingredients to shopping list
+    if (recipeId) {
+      const stock = await db.select().from(kitchenStockTable);
+      const inStockNames = stock
+        .filter(s => s.quantity > 0)
+        .map(s => s.ingredientName.toLowerCase());
+
+      const recipeIngredients = await db
+        .select()
+        .from(recipeIngredientsTable)
+        .where(eq(recipeIngredientsTable.recipeId, recipeId));
+
+      const missing = recipeIngredients.filter(
+        i => !i.isOptional && !inStockNames.includes(i.ingredientName.toLowerCase())
+      );
+
+      for (const ing of missing) {
+        const existing = await db.select().from(shoppingListTable)
+          .where(and(
+            eq(shoppingListTable.name, ing.ingredientName),
+            eq(shoppingListTable.isChecked, false)
+          ));
+        if (existing.length === 0) {
+          const [created] = await db.insert(shoppingListTable).values({
+            ingredientId: ing.ingredientId,
+            name: ing.ingredientName,
+            quantity: ing.quantity ?? 1,
+            unit: ing.unit ?? null,
+            reason: "Recipe ingredient",
+            isChecked: false,
+            isManual: false,
+          }).returning();
+          added.push(created);
+        }
+      }
+    }
+
+    // Also add low stock items if requested (default: only when no recipeId)
+    if (includeLowStock !== false && !recipeId) {
       const stock = await db.select().from(kitchenStockTable);
       const lowItems = stock.filter(s => s.quantity <= s.lowThreshold);
       for (const item of lowItems) {
