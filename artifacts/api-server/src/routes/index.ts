@@ -7,6 +7,7 @@ import suggestionsRouter from "./suggestions";
 import shoppingRouter from "./shopping";
 import dashboardRouter from "./dashboard";
 import anthropicRouter from "./anthropic/index";
+import plannerRouter from "./planner";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(suggestionsRouter);
 router.use(shoppingRouter);
 router.use(dashboardRouter);
 router.use(anthropicRouter);
+router.use(plannerRouter);
 
 export default router;

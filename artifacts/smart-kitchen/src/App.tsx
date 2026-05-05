@@ -13,6 +13,7 @@ import Suggestions from "@/pages/suggestions";
 import Shopping from "@/pages/shopping";
 import Chat from "@/pages/chat";
 import History from "@/pages/history";
+import Planner from "@/pages/planner";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
         <Route path="/shopping" component={Shopping} />
         <Route path="/chat" component={Chat} />
         <Route path="/history" component={History} />
+        <Route path="/planner" component={Planner} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

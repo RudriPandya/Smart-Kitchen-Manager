@@ -1,12 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ChefHat, Home, Package, Utensils, Sparkles, ShoppingCart, MessageSquare, CalendarDays } from "lucide-react";
+import { ChefHat, Home, Package, Utensils, Sparkles, ShoppingCart, MessageSquare, CalendarDays, CalendarCheck } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/stock", label: "Pantry", icon: Package },
   { href: "/recipes", label: "Recipes", icon: Utensils },
   { href: "/suggestions", label: "Ideas", icon: Sparkles },
+  { href: "/planner", label: "Planner", icon: CalendarCheck },
   { href: "/history", label: "History", icon: CalendarDays },
   { href: "/shopping", label: "Shopping", icon: ShoppingCart },
   { href: "/chat", label: "Chef Chat", icon: MessageSquare },

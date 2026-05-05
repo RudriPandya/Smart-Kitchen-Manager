@@ -6,3 +6,4 @@ export * from "./shopping_list";
 export * from "./activity_log";
 export * from "./conversations";
 export * from "./messages";
+export * from "./meal_plans";
