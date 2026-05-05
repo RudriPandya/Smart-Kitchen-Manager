@@ -12,6 +12,7 @@ import RecipeDetail from "@/pages/recipe-detail";
 import Suggestions from "@/pages/suggestions";
 import Shopping from "@/pages/shopping";
 import Chat from "@/pages/chat";
+import History from "@/pages/history";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/suggestions" component={Suggestions} />
         <Route path="/shopping" component={Shopping} />
         <Route path="/chat" component={Chat} />
+        <Route path="/history" component={History} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

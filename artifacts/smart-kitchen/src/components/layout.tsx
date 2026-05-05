@@ -1,12 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ChefHat, Home, Package, Utensils, Sparkles, ShoppingCart, MessageSquare } from "lucide-react";
+import { ChefHat, Home, Package, Utensils, Sparkles, ShoppingCart, MessageSquare, CalendarDays } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/stock", label: "Pantry", icon: Package },
   { href: "/recipes", label: "Recipes", icon: Utensils },
   { href: "/suggestions", label: "Ideas", icon: Sparkles },
+  { href: "/history", label: "History", icon: CalendarDays },
   { href: "/shopping", label: "Shopping", icon: ShoppingCart },
   { href: "/chat", label: "Chef Chat", icon: MessageSquare },
 ];
@@ -77,17 +78,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border px-2 py-2 flex justify-around">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border px-1 py-1.5 flex justify-around">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
               <div className={cn(
-                "flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg transition-all min-w-[52px]",
+                "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all min-w-[44px]",
                 isActive(item.href)
                   ? "text-primary"
                   : "text-sidebar-foreground/50 hover:text-sidebar-foreground"
               )}>
                 <item.icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium leading-none">{item.label}</span>
+                <span className="text-[9px] font-medium leading-none">{item.label}</span>
               </div>
             </Link>
           ))}

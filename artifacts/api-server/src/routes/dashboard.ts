@@ -11,6 +11,12 @@ function getStatus(quantity: number, lowThreshold: number) {
   return "in_stock";
 }
 
+// Parse recipe name from activity description
+function parseRecipeName(description: string): string | null {
+  const match = description.match(/^Cooked (.+?)(?:\s+for \d+ (?:person|people))?\s+—/);
+  return match ? match[1].trim() : null;
+}
+
 router.get("/dashboard/summary", async (req, res) => {
   try {
     const stock = await db.select().from(kitchenStockTable);
@@ -92,6 +98,39 @@ router.get("/dashboard/low-stock", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to get low stock items" });
+  }
+});
+
+// Cooking history: all cooked entries grouped by date
+router.get("/dashboard/cooking-history", async (req, res) => {
+  try {
+    const all = await db.select().from(activityLogTable)
+      .orderBy(desc(activityLogTable.timestamp))
+      .limit(200);
+
+    const cooked = all.filter(a => a.type === "cooked");
+
+    // Group by date (YYYY-MM-DD)
+    const byDate: Record<string, { id: number; recipeName: string; servings?: number; timestamp: string }[]> = {};
+    for (const entry of cooked) {
+      const date = entry.timestamp.toISOString().slice(0, 10);
+      const recipeName = parseRecipeName(entry.description) ?? entry.description;
+      const servingsMatch = entry.description.match(/for (\d+) (?:person|people)/);
+      const servings = servingsMatch ? parseInt(servingsMatch[1]) : undefined;
+
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push({ id: entry.id, recipeName, servings, timestamp: entry.timestamp.toISOString() });
+    }
+
+    // Return as sorted array of { date, meals }
+    const result = Object.entries(byDate)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, meals]) => ({ date, meals }));
+
+    res.json(result);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get cooking history" });
   }
 });
 
