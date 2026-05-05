@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Ez52Q4MjLUrD9IxVnIl1d"
+uri = "file://README.md"
+type = "text"
+title = "Sous-Chef README"
