@@ -1,103 +1,197 @@
 import { useGetDashboardSummary, useGetRecentActivity, useGetLowStockItems } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, CheckCircle2, UtensilsCrossed, ShoppingCart, Clock } from "lucide-react";
+import { Link } from "wouter";
+import { AlertTriangle, CheckCircle2, UtensilsCrossed, ShoppingCart, Clock, Package, ChefHat, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
+
+const activityIcons: Record<string, string> = {
+  cooked: "🍳",
+  restock: "📦",
+  stock_added: "➕",
+  stock_removed: "🗑️",
+  quantity_updated: "✏️",
+};
 
 export default function Dashboard() {
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary();
   const { data: activity, isLoading: isLoadingActivity } = useGetRecentActivity();
   const { data: lowStock, isLoading: isLoadingLowStock } = useGetLowStockItems();
 
-  if (isLoadingSummary || isLoadingActivity || isLoadingLowStock) {
+  if (isLoadingSummary) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-10 w-48 mb-2" />
-          <Skeleton className="h-5 w-64" />
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-56" />
+          <Skeleton className="h-5 w-72" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
     );
   }
 
+  const totalIngredients = summary?.totalIngredients ?? 0;
+  const inStock = summary?.inStockCount ?? 0;
+  const lowOutCount = (summary?.lowStockCount ?? 0) + (summary?.outOfStockCount ?? 0);
+  const cookable = summary?.canCookNow ?? 0;
+  const shopping = summary?.shoppingListCount ?? 0;
+
+  const stockPct = totalIngredients > 0 ? Math.round((inStock / totalIngredients) * 100) : 0;
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Kitchen Overview</h1>
-        <p className="text-muted-foreground mt-2">Here's what's happening in your kitchen today.</p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-serif">Kitchen Overview</h1>
+          <p className="text-muted-foreground mt-1">Here's what's happening in your kitchen today.</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
+          <Clock className="w-3.5 h-3.5" />
+          {format(new Date(), "EEEE, MMM d")}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-primary shadow-sm hover-elevate transition-all">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">In Stock</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.inStockCount || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">ingredients ready</p>
-          </CardContent>
-        </Card>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link href="/stock">
+          <Card className="group cursor-pointer hover:shadow-md hover:border-primary/40 transition-all duration-200 border-l-4 border-l-primary">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">In Stock</span>
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <CheckCircle2 className="w-4.5 h-4.5 text-primary" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-foreground">{inStock}</div>
+              <p className="text-xs text-muted-foreground mt-1">{stockPct}% of pantry ready</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-destructive shadow-sm hover-elevate transition-all">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Low/Out of Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{(summary?.lowStockCount || 0) + (summary?.outOfStockCount || 0)}</div>
-            <p className="text-xs text-muted-foreground mt-1">items need attention</p>
-          </CardContent>
-        </Card>
+        <Link href="/stock">
+          <Card className={`group cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 ${lowOutCount > 0 ? "border-l-destructive hover:border-destructive/60" : "border-l-green-400"}`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Need Attention</span>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${lowOutCount > 0 ? "bg-destructive/10 group-hover:bg-destructive/20" : "bg-green-50"}`}>
+                  <AlertTriangle className={`w-4.5 h-4.5 ${lowOutCount > 0 ? "text-destructive" : "text-green-500"}`} />
+                </div>
+              </div>
+              <div className="text-3xl font-bold">{lowOutCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {lowOutCount === 0 ? "All stocked up!" : "items low or out"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-chart-3 shadow-sm hover-elevate transition-all">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Cookable Meals</CardTitle>
-            <UtensilsCrossed className="h-4 w-4 text-chart-3" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.canCookNow || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">recipes you can make now</p>
-          </CardContent>
-        </Card>
+        <Link href="/suggestions">
+          <Card className="group cursor-pointer hover:shadow-md hover:border-amber-400/50 transition-all duration-200 border-l-4 border-l-amber-400">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Can Cook Now</span>
+                <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+                  <UtensilsCrossed className="w-4.5 h-4.5 text-amber-600" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold">{cookable}</div>
+              <p className="text-xs text-muted-foreground mt-1">recipes with ingredients</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-chart-4 shadow-sm hover-elevate transition-all">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Shopping List</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-chart-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.shoppingListCount || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">items to buy</p>
-          </CardContent>
-        </Card>
+        <Link href="/shopping">
+          <Card className={`group cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 ${shopping > 0 ? "border-l-blue-400" : "border-l-muted"}`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Shopping List</span>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${shopping > 0 ? "bg-blue-50 group-hover:bg-blue-100" : "bg-muted"}`}>
+                  <ShoppingCart className={`w-4.5 h-4.5 ${shopping > 0 ? "text-blue-500" : "text-muted-foreground"}`} />
+                </div>
+              </div>
+              <div className="text-3xl font-bold">{shopping}</div>
+              <p className="text-xs text-muted-foreground mt-1">items to buy</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Low Stock Alerts</CardTitle>
+      {/* Category breakdown bar (if we have data) */}
+      {summary?.categoryBreakdown && summary.categoryBreakdown.length > 0 && (
+        <Card className="border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              Pantry Breakdown
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {lowStock?.length === 0 ? (
-              <p className="text-muted-foreground text-sm">All items are well stocked.</p>
+            <div className="flex flex-wrap gap-2">
+              {summary.categoryBreakdown
+                .sort((a, b) => b.count - a.count)
+                .map(({ category, count }) => (
+                  <div key={category} className="flex items-center gap-1.5 bg-muted/60 px-3 py-1.5 rounded-full text-sm border border-border/40">
+                    <span className="font-medium text-foreground/80">{category}</span>
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5 bg-background">{count}</Badge>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Low Stock + Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Low Stock Alerts */}
+        <Card className="border-border/60">
+          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              Low Stock Alerts
+            </CardTitle>
+            {(lowStock?.length ?? 0) > 0 && (
+              <Link href="/shopping">
+                <span className="text-xs text-primary hover:underline cursor-pointer font-medium">Add to cart →</span>
+              </Link>
+            )}
+          </CardHeader>
+          <CardContent>
+            {isLoadingLowStock ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : lowStock?.length === 0 ? (
+              <div className="flex flex-col items-center py-6 text-center gap-2">
+                <CheckCircle2 className="w-8 h-8 text-primary/40" />
+                <p className="text-sm text-muted-foreground">All items are well stocked!</p>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {lowStock?.map(item => (
-                  <div key={item.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm">{item.ingredientName}</p>
-                      <p className="text-xs text-muted-foreground">{item.category}</p>
+                  <div key={item.id} className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === "out" ? "bg-destructive" : "bg-orange-400"}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{item.ingredientName}</p>
+                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-destructive">
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className={`text-sm font-bold ${item.status === "out" ? "text-destructive" : "text-orange-500"}`}>
                         {item.quantity} {item.unit}
                       </span>
+                      <Badge variant="outline" className={`text-xs ${item.status === "out" ? "border-destructive/30 text-destructive bg-destructive/5" : "border-orange-200 text-orange-600 bg-orange-50"}`}>
+                        {item.status === "out" ? "Out" : "Low"}
+                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -106,23 +200,35 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
+        {/* Recent Activity */}
+        <Card className="border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              Recent Activity
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {activity?.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No recent activity.</p>
+            {isLoadingActivity ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : activity?.length === 0 ? (
+              <div className="flex flex-col items-center py-6 text-center gap-2">
+                <ChefHat className="w-8 h-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No recent activity yet.</p>
+                <p className="text-xs text-muted-foreground">Cook a recipe or update your pantry to see activity here.</p>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {activity?.map(item => (
-                  <div key={item.id} className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-full p-1 bg-muted">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div key={item.id} className="flex items-start gap-3 py-2 border-b border-border/40 last:border-0">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-base flex-shrink-0">
+                      {activityIcons[item.type] ?? "•"}
                     </div>
-                    <div>
-                      <p className="text-sm">{item.description}</p>
-                      <p className="text-xs text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-snug">{item.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {format(new Date(item.timestamp), "MMM d, h:mm a")}
                       </p>
                     </div>
@@ -132,6 +238,49 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Link href="/suggestions">
+          <Card className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group border-dashed border-2">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <UtensilsCrossed className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Find a Meal</p>
+                <p className="text-xs text-muted-foreground">Based on your pantry</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/chat">
+          <Card className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group border-dashed border-2">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <ChefHat className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Ask AI Chef</p>
+                <p className="text-xs text-muted-foreground">Get recipe advice</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/stock">
+          <Card className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group border-dashed border-2">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Update Pantry</p>
+                <p className="text-xs text-muted-foreground">Add or remove items</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

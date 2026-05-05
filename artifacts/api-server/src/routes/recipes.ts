@@ -90,12 +90,19 @@ router.get("/recipes/:id", async (req, res) => {
   }
 });
 
-// Cook a recipe: deduct ingredient quantities from kitchen stock
+// Cook a recipe: deduct scaled ingredient quantities from kitchen stock
 router.post("/recipes/:id/cook", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const { servings: requestedServings } = req.body as { servings?: number };
+
     const [recipe] = await db.select().from(recipesTable).where(eq(recipesTable.id, id));
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
+
+    // Scale factor based on requested vs base servings
+    const scale = requestedServings && recipe.servings > 0
+      ? requestedServings / recipe.servings
+      : 1;
 
     const recipeIngredients = await db
       .select()
@@ -112,7 +119,7 @@ router.post("/recipes/:id/cook", async (req, res) => {
         .where(eq(kitchenStockTable.ingredientName, ing.ingredientName));
 
       if (stockItem) {
-        const deductAmount = ing.quantity ?? 1;
+        const deductAmount = Math.round(((ing.quantity ?? 1) * scale) * 100) / 100;
         const newQty = Math.max(0, stockItem.quantity - deductAmount);
         await db.update(kitchenStockTable)
           .set({ quantity: newQty, updatedAt: new Date() })
@@ -123,12 +130,13 @@ router.post("/recipes/:id/cook", async (req, res) => {
       }
     }
 
+    const servingsNote = requestedServings ? ` for ${requestedServings} ${requestedServings === 1 ? "person" : "people"}` : "";
     await db.insert(activityLogTable).values({
       type: "cooked",
-      description: `Cooked ${recipe.name} — deducted ${deducted.length} ingredient(s) from stock`,
+      description: `Cooked ${recipe.name}${servingsNote} — deducted ${deducted.length} ingredient(s) from stock`,
     });
 
-    res.json({ success: true, recipeName: recipe.name, deducted, notFound });
+    res.json({ success: true, recipeName: recipe.name, servings: requestedServings ?? recipe.servings, scale, deducted, notFound });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to cook recipe" });
